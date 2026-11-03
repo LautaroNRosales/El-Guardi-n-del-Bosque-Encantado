@@ -50,7 +50,7 @@ Dos estrategias distintas (no basta cambiar de algoritmo), **seleccionables en e
 ## 5. La IA del Guardián
 
 **Percepción**
-- Visión: cono **90°** orientado a la marcha; alcances **8** (solo de pie, sin obstáculos) / **5** (seguro) / **2** (cercanía: ve incluso agachado). Línea de visión bloqueada por **árboles, rocas y altares** (muestreo de línea sobre la grilla). **Escondido en arbusto = invisible.**
+- Visión: cono **90°** orientado a la marcha; alcances **8** (solo de pie, sin obstáculos) / **5** (seguro) / **2** (cercanía: ve incluso agachado). Línea de visión bloqueada por **árboles, rocas y altares** (muestreo de línea sobre la grilla). **Escondido en arbusto = invisible** (y no puede capturarte mientras estés oculto; volvés a ser vulnerable al salir).
 - Oído: **correr 6 celdas** / **caminar 1** / quieto o agachado / **nada**.
 - **Umbral de pérdida de rastro**: 3 s sin confirmar → deja de perseguir y pasa a Búsqueda.
 

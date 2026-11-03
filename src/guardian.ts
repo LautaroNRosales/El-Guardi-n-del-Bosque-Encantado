@@ -148,10 +148,11 @@ export class Guardian {
         break;
     }
 
-    // Captura: contacto directo.
+    // Captura: contacto directo. Escondido en un arbusto = intocable:
+    // el guardián no vio al jugador y el contacto no lo delata.
     const dx = player.pos.x - this.pos.x;
     const dy = player.pos.y - this.pos.y;
-    if (Math.hypot(dx, dy) <= CAPTURE_DISTANCE) {
+    if (!player.hidden && Math.hypot(dx, dy) <= CAPTURE_DISTANCE) {
       this.caughtPlayer = true;
     }
   }

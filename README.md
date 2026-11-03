@@ -36,7 +36,7 @@ En Windows con PowerShell y ejecución de scripts restringida, usá `npm.cmd` en
 | Moverse | Flechas / WASD |
 | Correr (duplica velocidad, ruido fuerte detectable a 6 celdas) | Shift + movimiento |
 | Agacharse (lento, en silencio, detección solo a < 2 celdas) | Espacio (mantener) |
-| Esconderse / salir del arbusto | E (solo en arbustos; invisible mientras está escondido) |
+| Esconderse / salir del arbusto | E (solo en arbustos; escondido = **invisible e intocable**) |
 | Activar altar (solo junto al altar, sin correr) | E (mantener ~2 s) |
 | **Generar otra variante del bosque** | **R** (también botón en el HUD) |
 | **Silencio on/off** | **M** |
@@ -62,7 +62,7 @@ En la exposición se puede alternar ambos en vivo y generar otra variante (R) pa
 2. El **portal** se abre; alcanzalo para ganar.
 3. **Perdé** si el Guardián te toca.
 
-Sigilo: el Guardián tiene **cono de visión de 90°** (8 celdas lejano — solo de pie; 5 seguro; 2 cercano — detecta incluso agachado) bloqueado por **árboles, rocas y altares**, y **oído** (correr: 6; caminar: 1; quieto/agachado/escondido: nada). Si deja de percibirte, mantiene tu **última posición conocida 3 s** y luego hace un **barrido BFS** de la zona.
+Sigilo: el Guardián tiene **cono de visión de 90°** (8 celdas lejano — solo de pie; 5 seguro; 2 cercano — detecta incluso agachado) bloqueado por **árboles, rocas y altares**, y **oído** (correr: 6; caminar: 1; quieto/agachado/escondido: nada). **Mientras estás escondido en un arbusto, no puede verte, oírte ni capturarte**; al salir, volvés a ser vulnerable. Si deja de percibirte, mantiene tu **última posición conocida 3 s** y luego hace un **barrido BFS** de la zona.
 
 ## Arquitectura
 

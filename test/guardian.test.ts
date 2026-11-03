@@ -58,6 +58,26 @@ describe('guardia: percepción y captura (simulación)', () => {
     expect(guardian.caughtPlayer).toBe(false);
   });
 
+  it('escondido, no puede ser capturado aunque el guardián llegue hasta el arbusto', () => {
+    const { guardian, player, grid } = makeWorld(false);
+    grid.set(6, 4, 'bush');
+    guardian.state = 'chase'; // ya venía persiguiéndolo
+    guardian.lastKnown = { x: 6, y: 4 }; // última celda vista: el arbusto
+    player.hidden = true;
+    simulate(guardian, player, 8); // el guardián camina hasta la celda y no ve a nadie
+    expect(guardian.caughtPlayer).toBe(false);
+  });
+
+  it('si el jugador sale del escondite a la vista, el guardián lo captura', () => {
+    const { guardian, player, grid } = makeWorld(false);
+    grid.set(6, 4, 'bush');
+    guardian.state = 'chase';
+    guardian.lastKnown = { x: 6, y: 4 };
+    player.hidden = false; // sale del arbusto: vuelve a ser visible
+    simulate(guardian, player, 8);
+    expect(guardian.caughtPlayer).toBe(true);
+  });
+
   it('al activar un altar, una perturbación lo desvía a investigar (Alerta)', () => {
     const { guardian, player } = makeWorld(true); // sin línea de visión
     guardian.notifyDisturbance({ x: 2, y: 4 });

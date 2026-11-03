@@ -19,6 +19,7 @@ Combate, coordinación entre varios guardias, animaciones complejas.
 - Sin jugador visible, el guardián patrulla.
 - Con jugador visible, comienza la persecución.
 - No detecta al jugador a través de paredes (LOS bloqueada por árboles, rocas y altares).
+- Mientras está escondido en un arbusto, el guardián no lo ve, no lo oye y **no puede capturarlo** (ni tocandolo); el jugador vuelve a ser vulnerable al salir del arbusto.
 - Si no existe un camino, no atraviesa obstáculos ni se bloquea: permanece en una celda válida y retoma la patrulla.
 - Se puede seleccionar **BFS o A\*** en el panel «Métodos» y observar cómo cambia el recorrido (con F2 activo se ve la ruta y los nodos expandidos).
 - Al generar otra variante (R), la patrulla adapta sus rutas a los obstáculos.
