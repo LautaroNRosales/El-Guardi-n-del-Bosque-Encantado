@@ -167,14 +167,19 @@ export function bfsReachable(grid: Grid, start: CellCoord): Set<number> {
 
 /**
  * «Carve» (tallar): garantiza conexión aunque no haya camino transitable.
- * A* con costos: 1 pasto / 6 árbol-roca. Al terminar, las celdas obstáculo
- * que atravesó el camino se abren (pasan a pasto).
+ * A* con costos: 1 pasto/portal / 6 árbol-roca / altar = infranqueable.
+ * Al terminar, SOLO las celdas árbol/roca que atravesó el camino se abren.
  */
 export function carve(grid: Grid, start: CellCoord, goal: CellCoord): boolean {
   if (!grid.inBounds(start.x, start.y) || !grid.inBounds(goal.x, goal.y)) return false;
 
-  const cost = (x: number, y: number): number =>
-    grid.isWalkable(x, y) ? CARVE_GRASS_COST : CARVE_OBSTACLE_COST;
+  // Altares y portal: el portal es transitable (coste 1); el altar es infranqueable.
+  const cost = (x: number, y: number): number => {
+    const c = grid.at(x, y);
+    if (c === 'tree' || c === 'rock') return CARVE_OBSTACLE_COST;
+    if (c === 'altar') return Infinity;
+    return CARVE_GRASS_COST;
+  };
 
   const startKey = keyOf(grid, start.x, start.y);
   const goalKey = keyOf(grid, goal.x, goal.y);
@@ -192,9 +197,10 @@ export function carve(grid: Grid, start: CellCoord, goal: CellCoord): boolean {
     if (closed.has(current)) continue;
     closed.add(current);
     if (current === goalKey) {
-      // Abrir paso: todo obstáculo del camino pasa a pasto.
+      // Abrir paso: SOLO árboles/rocas del camino pasan a pasto (los altares nunca).
       for (const c of reconstruct(cameFrom, current, grid)) {
-        if (!grid.isWalkable(c.x, c.y)) grid.set(c.x, c.y, 'grass');
+        const cell = grid.at(c.x, c.y);
+        if (cell === 'tree' || cell === 'rock') grid.set(c.x, c.y, 'grass');
       }
       return true;
     }

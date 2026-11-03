@@ -2,6 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { Grid } from '../src/grid';
+import { generateMap } from '../src/mapgen';
+import { buildWaypointGraph, edgePath } from '../src/waypoints';
 import { astar, bfs, bfsArea, bfsReachable, carve, isReachable } from '../src/pathfinding';
 
 function makeOpenGrid(w = 5, h = 5): Grid {
@@ -80,6 +82,50 @@ describe('pathfinding', () => {
     let opened = 0;
     for (let y = 0; y < 5; y++) if (g.at(2, y) === 'grass') opened++;
     expect(opened).toBeGreaterThan(0);
+  });
+});
+
+describe('mapgen: validez en 100 semillas', () => {
+  const seeds = Array.from({ length: 100 }, (_, i) => 1234 + i * 7919);
+
+  it.each(seeds)('semilla %i: inicio alcanza portal y altares', (seed) => {
+    const map = generateMap(seed);
+    const grid = new Grid(map.w, map.h, 'grass');
+    grid.cells = map.cells.map((r) => r.slice());
+    const reachable = bfsReachable(grid, map.start);
+    const k = (x: number, y: number) => y * grid.w + x;
+    expect(reachable.has(k(map.portal.x, map.portal.y))).toBe(true);
+    for (const altar of map.altars) {
+      const adj = [
+        { x: altar.x + 1, y: altar.y },
+        { x: altar.x - 1, y: altar.y },
+        { x: altar.x, y: altar.y + 1 },
+        { x: altar.x, y: altar.y - 1 },
+      ];
+      expect(adj.some((c) => reachable.has(k(c.x, c.y)))).toBe(true);
+    }
+    // Nada de la generación pisa el inicio o el portal con un obstáculo.
+    expect(grid.isWalkable(map.start.x, map.start.y)).toBe(true);
+    expect(grid.isWalkable(map.portal.x, map.portal.y)).toBe(true);
+  });
+
+  it.each(seeds)('semilla %i: red de waypoints conexa y útil', (seed) => {
+    const map = generateMap(seed);
+    const graph = buildWaypointGraph(map);
+    expect(graph.nodes.length).toBe(9);
+    for (const node of graph.nodes) {
+      const grid = new Grid(map.w, map.h, 'grass');
+      grid.cells = map.cells;
+      expect(grid.isWalkable(node.x, node.y)).toBe(true);
+    }
+    // Todas las aristas declaradas retornan polilínea no vacía en ambos sentidos.
+    for (const key of graph.edges.keys()) {
+      const [a, b] = key.split('-').map(Number);
+      expect(edgePath(graph, a, b).length).toBeGreaterThan(0);
+      expect(edgePath(graph, b, a).length).toBeGreaterThan(0);
+    }
+    // El ciclo de patrulla visita todos los nodos.
+    expect(new Set(graph.patrol).size).toBe(graph.nodes.length);
   });
 });
 
