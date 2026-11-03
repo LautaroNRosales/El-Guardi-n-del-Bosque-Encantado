@@ -31,7 +31,7 @@ npm.cmd run dev
 # → abrí en el navegador: http://localhost:5173
 ```
 
-### Opción 2 — Build de producción (como la cátedra lo evaluará)
+### Opción 2 — Build de producción
 
 ```powershell
 npm.cmd install   # solo la primera vez
@@ -42,9 +42,6 @@ npm.cmd run preview
 
 > **¿Por qué `npm.cmd`?** En Windows, el PowerShell con la ejecución de scripts restringida rechaza `npm` (error de ExecutionPolicy por `npm.ps1`). La variante `npm.cmd` funciona siempre. En Linux/macOS o Git Bash, `npm` a secas está bien.
 
-`http://localhost:5173/?play` arranca directo en la partida y `?play&seed=1234` fija una semilla concreta (útil para reproducir una variante en la demo).
-
-Para correr los tests: `npm.cmd run test`.
 
 ## Controles
 
