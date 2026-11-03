@@ -1,13 +1,16 @@
-// Punto de entrada mínimo (se completa en hito 3).
-const canvas = document.getElementById('game') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d')!;
+// Punto de entrada: crea el juego y corre el bucle principal.
 
-ctx.fillStyle = '#07130c';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-ctx.fillStyle = '#cfe8d4';
-ctx.font = '20px Georgia';
-ctx.textAlign = 'center';
-ctx.fillText('El Guardián del Bosque Encantado', canvas.width / 2, canvas.height / 2 - 10);
-ctx.font = '13px Georgia';
-ctx.fillStyle = '#7ea487';
-ctx.fillText('(andamiaje en construcción — hito 1)', canvas.width / 2, canvas.height / 2 + 16);
+import { Game } from './game';
+
+const canvas = document.getElementById('game') as HTMLCanvasElement;
+const game = new Game(canvas);
+
+let last = performance.now();
+function frame(now: number): void {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  game.update(dt);
+  game.render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);

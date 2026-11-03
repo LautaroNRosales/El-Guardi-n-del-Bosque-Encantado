@@ -25,30 +25,6 @@ function manhattan(a: CellCoord, b: CellCoord): number {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
-/** Nearest celda transitable a (x,y) por BFS en anillo. */
-function nearestWalkable(grid: Grid, target: CellCoord): CellCoord {
-  if (grid.isWalkable(target.x, target.y)) return { ...target };
-  const seen = new Set<number>([keyOf(target.x, target.y, grid.w)]);
-  const queue: CellCoord[] = [{ ...target }];
-  let head = 0;
-  while (head < queue.length) {
-    const cur = queue[head++];
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
-    for (const [dx, dy] of dirs) {
-      const nx = cur.x + dx;
-      const ny = cur.y + dy;
-      if (!grid.inBounds(nx, ny)) continue;
-      const k = keyOf(nx, ny, grid.w);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      const c = { x: nx, y: ny };
-      if (grid.isWalkable(nx, ny)) return c;
-      queue.push(c);
-    }
-  }
-  return { ...target }; // nunca debería ocurrir (siempre hay pasto tras carve)
-}
-
 export function generateMap(seed: number): GameMap {
   for (let attempt = 0; attempt < MAX_GEN_ATTEMPTS; attempt++) {
     const rng = createRng((seed + attempt * 2654435761) >>> 0);
