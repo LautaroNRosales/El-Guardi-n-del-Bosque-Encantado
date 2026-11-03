@@ -18,7 +18,7 @@ export const CROUCH_SPEED = 1.5;
 export const GUARDIAN_PATROL_SPEED = 2.0;
 export const GUARDIAN_RETURN_SPEED = 3.5;
 export const GUARDIAN_SEARCH_SPEED = 3.2;
-export const GUARDIAN_CHASE_SPEED = 5.0;
+export const GUARDIAN_CHASE_SPEED = 4.0;
 
 // --- Visión del Guardián (GDD 3.1) ---
 export const VISION_HALF_ANGLE_DEG = 45;   // cono total de 90°
