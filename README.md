@@ -12,22 +12,39 @@ Repositorio público: <https://github.com/LautaroNRosales/El-Guardi-n-del-Bosque
 
 ---
 
-## Requisitos de ejecución
+## Cómo ejecutar
 
-- **Node.js ≥ 18** (probado con v24) y npm.
-- Sin assets externos, sin cuenta, sin API keys. Todo se genera por código.
+**Requisitos:** Node.js ≥ 18 (probado con v24) y npm. Sin assets externos, sin cuenta y sin API keys: todo se genera por código.
 
-```bash
-npm install        # instala dependencias (vite, typescript, vitest)
-npm run dev        # desarrollo → http://localhost:5173
-npm run build      # type-check + build de producción → dist/
-npm run preview    # sirve el build → http://localhost:4173
-npm run test       # tests de lógica y de la FSM (vitest)
+### Opción 1 — Ejecutar en desarrollo
+
+```powershell
+# 1) Cloná el repo y abrí PowerShell en la carpeta del proyecto
+git clone https://github.com/LautaroNRosales/El-Guardi-n-del-Bosque-Encantado.git
+cd "El-Guardi-n-del-Bosque-Encantado"
+
+# 2) Instalá las dependencias (solo la primera vez)
+npm.cmd install
+
+# 3) Corré el juego
+npm.cmd run dev
+# → abrí en el navegador: http://localhost:5173
 ```
 
-En Windows con PowerShell y ejecución de scripts restringida, usá `npm.cmd` en lugar de `npm`.
+### Opción 2 — Build de producción (como la cátedra lo evaluará)
 
-`http://localhost:5173/?play` arranca directo en partida y `?play&seed=1234` fija una semilla concreta (útil para reproducir una variante en la demo).
+```powershell
+npm.cmd install   # solo la primera vez
+npm.cmd run build # type-check + genera dist/
+npm.cmd run preview
+# → abrí en el navegador: http://localhost:4173
+```
+
+> **¿Por qué `npm.cmd`?** En Windows, el PowerShell con la ejecución de scripts restringida rechaza `npm` (error de ExecutionPolicy por `npm.ps1`). La variante `npm.cmd` funciona siempre. En Linux/macOS o Git Bash, `npm` a secas está bien.
+
+`http://localhost:5173/?play` arranca directo en la partida y `?play&seed=1234` fija una semilla concreta (útil para reproducir una variante en la demo).
+
+Para correr los tests: `npm.cmd run test`.
 
 ## Controles
 
