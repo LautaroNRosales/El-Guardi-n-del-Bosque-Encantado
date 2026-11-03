@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>El Guardián del Bosque Encantado</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #07130c;
+      color: #cfe8d4;
+      font-family: 'Georgia', serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #game {
+      display: block;
+      image-rendering: pixelated;
+      border-radius: 8px;
+      box-shadow: 0 0 60px rgba(20, 60, 34, 0.8), inset 0 0 0 1px #1d3b28;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="940" height="660"></canvas>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "el-guardian-del-bosque-encantado",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Juego de sigilo 2D: activá los 3 altares y escapá sin que el Guardián te detecte. TP Final Integrador PIAPC 2026 — Lautaro Rosales.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
