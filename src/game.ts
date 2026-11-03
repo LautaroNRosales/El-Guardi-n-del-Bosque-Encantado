@@ -15,6 +15,9 @@ import {
 import { Grid } from './grid';
 import { generateMap } from './mapgen';
 import { buildWaypointGraph } from './waypoints';
+import { Guardian, STATE_LABEL } from './guardian';
+import { audio } from './audio';
+import { VISION_FAR, VISION_HALF_ANGLE_DEG } from './config';
 import { Player, type PlayerInput } from './player';
 import { drawEndOverlay, drawMenu, roundRect } from './screens';
 import { randomSeed } from './rng';
@@ -22,6 +25,7 @@ import type {
   CellCoord,
   GameMap,
   NavigationMode,
+  Pos,
   SearchAlgorithm,
   WaypointGraph,
 } from './types';
@@ -49,7 +53,10 @@ export class Game {
   private grid!: Grid;
   private graph!: WaypointGraph;
   private player!: Player;
+  private guardian!: Guardian;
   private seed = 0;
+  private prevPortalOpen = false;
+  private footstepTimer = 0;
 
   readonly altarsLit = new Set<number>();
   searchAlgorithm: SearchAlgorithm = 'astar';
@@ -86,8 +93,11 @@ export class Game {
     this.grid.cells = this.map.cells; // compartir referencia: carve muta el mapa
     this.graph = buildWaypointGraph(this.map); // puede tallar el bosque y abrir paso
     this.player = new Player(this.map.start);
+    this.guardian = new Guardian(this.grid, this.graph);
     this.altarsLit.clear();
     this.playTime = 0;
+    this.prevPortalOpen = false;
+    this.footstepTimer = 0;
   }
 
   private regenerate(): void {
@@ -115,6 +125,8 @@ export class Game {
       if (e.repeat) return;
       this.keys.add(code);
 
+      audio.ensure(); // primer gesto: habilita WebAudio
+
       if (code === 'Enter' && this.state === 'menu') {
         this.state = 'playing';
         return;
@@ -124,7 +136,8 @@ export class Game {
         return;
       }
       if (code === 'KeyM') {
-        // Silencio: el manejador de audio se conecta en hito 4.
+        audio.ensure();
+        audio.toggleMute();
         return;
       }
       if (code === 'F1') {
@@ -155,7 +168,10 @@ export class Game {
       this.mouse.x = (e.clientX - rect.left) * sx;
       this.mouse.y = (e.clientY - rect.top) * sx;
     });
-    this.canvas.addEventListener('mousedown', () => this.handleClick());
+    this.canvas.addEventListener('mousedown', () => {
+      audio.ensure();
+      this.handleClick();
+    });
   }
 
   private readInput(): PlayerInput {
@@ -213,9 +229,13 @@ export class Game {
     if (this.player.inBush(this.grid)) {
       this.player.hidden = !this.player.hidden;
       this.player.altarProgress = 0;
+      audio.rustle();
       return;
     }
-    if (this.player.hidden) this.player.hidden = false;
+    if (this.player.hidden) {
+      this.player.hidden = false;
+      audio.rustle();
+    }
   }
 
   private nearestAltarInRange(): { index: number; pos: CellCoord } | null {
@@ -254,6 +274,28 @@ export class Game {
     const input = this.readInput();
     this.player.update(dt, input, this.grid);
 
+    // Pasos audibles del espíritu.
+    if (this.player.moving) {
+      this.footstepTimer += dt;
+      const interval = this.player.running ? 0.17 : 0.31;
+      if (this.footstepTimer >= interval) {
+        this.footstepTimer = 0;
+        audio.step(this.player.running);
+      }
+    } else {
+      this.footstepTimer = 0;
+    }
+
+    // El guardián reacciona a las perturbaciones (altares activados).
+    const disturbance = this.takeDisturbance();
+    if (disturbance) this.guardian.notifyDisturbance(disturbance);
+    this.guardian.update(dt, this.player, this.searchAlgorithm, this.navigationMode);
+    if (this.guardian.caughtPlayer) {
+      this.state = 'lost';
+      audio.defeat();
+      return;
+    }
+
     // Canal de activación de altar: mantener E, quieto y no corriendo.
     const altar = this.nearestAltarInRange();
     if (this.keys.has('KeyE') && altar && !this.player.running) {
@@ -266,18 +308,23 @@ export class Game {
       this.player.altarProgress = Math.max(0, this.player.altarProgress - dt * 1.5);
     }
 
-    // Portal: victoria.
+    // Portal: apertura (transición) y victoria.
+    const open = this.portalOpen();
+    if (open && !this.prevPortalOpen) audio.portalHum();
+    this.prevPortalOpen = open;
     if (
-      this.portalOpen() &&
+      open &&
       this.grid.at(this.player.cellX(), this.player.cellY()) === 'portal'
     ) {
       this.state = 'won';
+      audio.victory();
     }
   }
 
   private activateAltar(index: number): void {
     this.altarsLit.add(index);
     this.altarDisturbance = { ...this.map.altars[index] };
+    audio.altarChime(); // también alerta al guardián (ver takeDisturbance)
   }
 
   // --------------------------------------------------------------- render
@@ -323,10 +370,13 @@ export class Game {
       }
     }
 
+    if (this.debugF1) this.drawVisionCone(ctx);
     if (this.debugF2) this.drawWaypointsDebug(ctx);
     if (this.debugF3) this.drawGridDebug(ctx);
 
+    this.drawGuardian(ctx);
     this.drawPlayer(ctx);
+    if (this.debugF2) this.drawGuardianDebug(ctx);
 
     // Prompt contextual e indicador de canal.
     this.drawPrompt(ctx);
@@ -580,6 +630,166 @@ export class Game {
     ctx.restore();
   }
 
+  /** Cono de visión recortado por los obstáculos (F1). */
+  private drawVisionCone(ctx: CanvasRenderingContext2D): void {
+    const g = this.guardian;
+    const ox = g.pos.x * CELL;
+    const oy = g.pos.y * CELL;
+    const half = (VISION_HALF_ANGLE_DEG * Math.PI) / 180;
+    const rays = 26;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    for (let i = 0; i <= rays; i++) {
+      const a = g.facing - half + (2 * half * i) / rays;
+      const len = this.rayLength(g.pos, a, VISION_FAR);
+      ctx.lineTo(ox + Math.cos(a) * len * CELL, oy + Math.sin(a) * len * CELL);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255, 217, 102, 0.10)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 217, 102, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private rayLength(from: Pos, angle: number, maxDist: number): number {
+    const step = 0.2;
+    let d = step;
+    while (d <= maxDist) {
+      const x = from.x + Math.cos(angle) * d;
+      const y = from.y + Math.sin(angle) * d;
+      if (this.grid.blocksSight(Math.floor(x), Math.floor(y))) {
+        return Math.max(0, d - step);
+      }
+      d += step;
+    }
+    return maxDist;
+  }
+
+  private drawGuardian(ctx: CanvasRenderingContext2D): void {
+    const g = this.guardian;
+    const cx = g.pos.x * CELL;
+    const cy = g.pos.y * CELL;
+
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 10, 12, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(g.facing + Math.PI / 2);
+
+    // Capa (silueta encapuchada)
+    ctx.fillStyle = '#26262e';
+    ctx.beginPath();
+    ctx.moveTo(0, -14);
+    ctx.quadraticCurveTo(11, -9, 12, 9);
+    ctx.quadraticCurveTo(7, 13, 0, 13);
+    ctx.quadraticCurveTo(-7, 13, -12, 9);
+    ctx.quadraticCurveTo(-11, -9, 0, -14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#3f3f4e';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Capucha
+    ctx.fillStyle = '#17171d';
+    ctx.beginPath();
+    ctx.ellipse(0, -7, 7.5, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ojos ámbar
+    ctx.fillStyle = COLORS.guardianEyes;
+    ctx.shadowColor = COLORS.guardianEyes;
+    ctx.shadowBlur = 7;
+    ctx.beginPath();
+    ctx.arc(-2.8, -7.5, 1.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(2.8, -7.5, 1.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** F2: ruta actual, última posición conocida y nodo objetivo. */
+  private drawGuardianDebug(ctx: CanvasRenderingContext2D): void {
+    const g = this.guardian;
+    ctx.save();
+
+    // Ruta activa (color según algoritmo de búsqueda elegido).
+    const path = g.debugPath();
+    if (path.length > 0) {
+      ctx.strokeStyle = this.searchAlgorithm === 'astar' ? '#ffd966' : '#7ec8ff';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(this.guardian.pos.x * CELL, this.guardian.pos.y * CELL);
+      for (const c of path) {
+        ctx.lineTo((c.x + 0.5) * CELL, (c.y + 0.5) * CELL);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      // Punto final
+      const last = path[path.length - 1];
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath();
+      ctx.arc((last.x + 0.5) * CELL, (last.y + 0.5) * CELL, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Última posición conocida del jugador (cruz roja).
+    if (g.lastKnown) {
+      const c = cellCenter(g.lastKnown);
+      ctx.strokeStyle = '#ff6b57';
+      ctx.lineWidth = 2;
+      const r = 6;
+      ctx.beginPath();
+      ctx.moveTo(c.x - r, c.y - r);
+      ctx.lineTo(c.x + r, c.y + r);
+      ctx.moveTo(c.x + r, c.y - r);
+      ctx.lineTo(c.x - r, c.y + r);
+      ctx.stroke();
+      ctx.font = '9px Georgia';
+      ctx.fillStyle = '#ff9d8d';
+      ctx.textAlign = 'center';
+      ctx.fillText('último visto', c.x, c.y - 9);
+    }
+
+    // Nodo objetivo actual de la red de waypoints.
+    const node = this.graph.nodes[g.targetNodeIndex];
+    if (node) {
+      const c = cellCenter(node);
+      ctx.strokeStyle = '#b9a5ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Estadísticas del último cálculo (A* vs BFS en vivo).
+    ctx.textAlign = 'left';
+    ctx.font = '11px monospace';
+    ctx.fillStyle = 'rgba(5,13,8,0.72)';
+    roundRect(ctx, 6, CANVAS_H - 24, 330, 18, 4);
+    ctx.fill();
+    ctx.fillStyle = this.searchAlgorithm === 'astar' ? '#ffd966' : '#7ec8ff';
+    const algo = this.searchAlgorithm === 'astar' ? 'A* ' : 'BFS';
+    ctx.fillText(
+      `${algo} · expandidos: ${g.lastExpanded} · camino: ${g.lastPathLength}`,
+      12,
+      CANVAS_H - 11,
+    );
+
+    ctx.restore();
+  }
+
   private drawPrompt(ctx: CanvasRenderingContext2D): void {
     const prompt = this.currentPrompt();
     const channel = this.player.altarProgress;
@@ -775,7 +985,17 @@ export class Game {
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '11px Georgia';
     ctx.fillText(`Semilla: ${this.seed}`, textX, y);
-    y += 18;
+    y += 22;
+
+    // Estado del guardián (observable en vivo)
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '10px Georgia';
+    ctx.fillText('E S T A D O   D E L   G U A R D I Á N', textX, y);
+    y += 16;
+    ctx.fillStyle = this.guardianStateColor();
+    ctx.font = 'bold 13px Georgia';
+    ctx.fillText(STATE_LABEL[this.guardian.state], textX, y);
+    y += 20;
     this.divider(ctx, sx, y, w);
     y += 20;
 
@@ -835,6 +1055,21 @@ export class Game {
     ctx.fillStyle = '#415c49';
     ctx.font = '9px Georgia';
     ctx.fillText('PIAPC · Lautaro Rosales · 2026', textX, CANVAS_H - 12);
+  }
+
+  private guardianStateColor(): string {
+    switch (this.guardian.state) {
+      case 'patrol':
+        return '#8fae97';
+      case 'alert':
+        return COLORS.accent;
+      case 'chase':
+        return COLORS.danger;
+      case 'search':
+        return '#7ec8ff';
+      case 'return':
+        return '#b9a5ff';
+    }
   }
 
   private divider(ctx: CanvasRenderingContext2D, sx: number, y: number, w: number): void {
